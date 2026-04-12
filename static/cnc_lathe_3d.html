@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+camera.position.set(2, 3, 8);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.0);
+key.position.set(6, 8, 4); scene.add(key);
+const rim = new THREE.PointLight(0xff6a9f, 1.4, 18);
+rim.position.set(-5, 2, 3); scene.add(rim);
+const accent = new THREE.PointLight(0xffd740, 1.0, 12);
+accent.position.set(3, -1, 4); scene.add(accent);
+
+const matGray  = new THREE.MeshStandardMaterial({color:0x778899, roughness:0.3, metalness:0.8});
+const matDark  = new THREE.MeshStandardMaterial({color:0x1a2a3a, roughness:0.5, metalness:0.7});
+const matTool  = new THREE.MeshStandardMaterial({color:0xffd740, roughness:0.1, metalness:0.95});
+const matGreen = new THREE.MeshStandardMaterial({color:0x00c853, roughness:0.3, metalness:0.4, emissive:0x003311, emissiveIntensity:0.5});
+const matWork  = new THREE.MeshStandardMaterial({color:0xaabbcc, roughness:0.2, metalness:0.9});
+
+const group = new THREE.Group();
+scene.add(group);
+
+// Lathe bed (main horizontal body)
+const bed = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.55, 1.6), matDark);
+bed.position.y = -1.0;
+group.add(bed);
+
+// Headstock (left side - motor/spindle housing)
+const headstock = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.6, 1.6), matGray);
+headstock.position.set(-2.0, -0.1, 0);
+group.add(headstock);
+
+// Chuck (3-jaw)
+const chuckGroup = new THREE.Group();
+chuckGroup.position.set(-1.35, -0.1, 0);
+group.add(chuckGroup);
+
+const chuckBody = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.22, 32), matDark);
+chuckBody.rotation.z = Math.PI/2;
+chuckGroup.add(chuckBody);
+
+// Chuck jaws
+for(let i=0; i<3; i++){
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.12), matGray);
+  const angle = (i/3)*Math.PI*2;
+  jaw.position.set(0, Math.sin(angle)*0.32, Math.cos(angle)*0.32);
+  jaw.rotation.x = angle;
+  chuckGroup.add(jaw);
+}
+
+// Workpiece (cylindrical part being turned)
+const workpiece = new THREE.Group();
+workpiece.position.set(-0.4, -0.1, 0);
+group.add(workpiece);
+
+const wpBody = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.8, 32), matWork);
+wpBody.rotation.z = Math.PI/2;
+workpiece.add(wpBody);
+
+// Turned features on workpiece
+const groove = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 8, 32), matDark);
+groove.rotation.y = Math.PI/2;
+groove.position.x = 0.4;
+workpiece.add(groove);
+
+// Tailstock (right side)
+const tailstock = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.2, 1.0), matGray);
+tailstock.position.set(2.0, -0.3, 0);
+group.add(tailstock);
+
+// Live center
+const center = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 16), matTool);
+center.rotation.z = Math.PI/2;
+center.position.set(1.65, -0.1, 0);
+group.add(center);
+
+// Carriage (tool post assembly)
+const carriage = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.5, 1.4), matGray);
+carriage.position.set(0.6, -0.55, 0);
+group.add(carriage);
+
+// Tool post
+const toolPost = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 0.22), matDark);
+toolPost.position.set(0.6, -0.12, 0);
+group.add(toolPost);
+
+// Cutting tool
+const cuttingTool = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.08), matTool);
+cuttingTool.position.set(0.35, -0.08, 0);
+group.add(cuttingTool);
+
+// Ways (guide rails)
+for(let side of [-0.55, 0.55]){
+  const way = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.12, 0.18), matDark);
+  way.position.set(0, -0.82, side);
+  group.add(way);
+}
+
+// Control panel
+const panel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.0, 0.75), matDark);
+panel.position.set(-2.55, -0.05, 0);
+group.add(panel);
+
+const screen = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.45), matGreen);
+screen.position.set(-2.6, 0.0, 0);
+group.add(screen);
+
+// Mouse
+let targetRotY = 0.2, currentRotY = 0.2;
+document.addEventListener('mousemove', e=>{
+  targetRotY = (e.clientX/window.innerWidth - 0.5)*1.4 + 0.2;
+});
+
+let spindleAngle = 0;
+function resize(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  if(!w||!h)return;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  resize();
+  currentRotY += (targetRotY-currentRotY)*0.05;
+  group.rotation.y = currentRotY;
+  group.rotation.x = 0.12;
+
+  spindleAngle += 0.06;
+  chuckGroup.rotation.x = spindleAngle;
+  workpiece.rotation.x = spindleAngle;
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

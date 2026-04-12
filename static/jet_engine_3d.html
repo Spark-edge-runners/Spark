@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(0, 1.5, 9);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+const key = new THREE.DirectionalLight(0xd7f0ff, 2.2);
+key.position.set(5, 8, 6); scene.add(key);
+const rim = new THREE.PointLight(0x85ffd0, 1.8, 20);
+rim.position.set(-4, 2, 4); scene.add(rim);
+const glow = new THREE.PointLight(0xff6a9f, 1.2, 15);
+glow.position.set(4, -1, 3); scene.add(glow);
+
+const matMetal   = new THREE.MeshStandardMaterial({color:0x8899aa, roughness:0.25, metalness:0.85});
+const matDark    = new THREE.MeshStandardMaterial({color:0x223344, roughness:0.4,  metalness:0.9});
+const matBlade   = new THREE.MeshStandardMaterial({color:0xcce8ff, roughness:0.15, metalness:0.7});
+const matGlow    = new THREE.MeshStandardMaterial({color:0x00d4ff, roughness:0.1,  metalness:0.6, emissive:0x003344, emissiveIntensity:0.6});
+const matExhaust = new THREE.MeshStandardMaterial({color:0xff6a3d, roughness:0.3,  metalness:0.5, emissive:0x441100, emissiveIntensity:0.5});
+
+const group = new THREE.Group();
+scene.add(group);
+
+// Main engine body (fuselage)
+const body1 = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.0, 4.5, 32), matMetal);
+body1.rotation.z = Math.PI/2;
+group.add(body1);
+
+// Front intake cone
+const intake = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.8, 32), matDark);
+intake.rotation.z = -Math.PI/2;
+intake.position.x = -3.1;
+group.add(intake);
+
+// Exhaust nozzle
+const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.0, 1.5, 32), matExhaust);
+exhaust.rotation.z = Math.PI/2;
+exhaust.position.x = 3.0;
+group.add(exhaust);
+
+// Fan blades (front)
+const fanGroup = new THREE.Group();
+fanGroup.position.x = -2.2;
+group.add(fanGroup);
+for(let i=0; i<12; i++){
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.05, 0.22), matBlade);
+  blade.position.y = 0.55;
+  blade.rotation.x = i * (Math.PI*2/12);
+  const pivot = new THREE.Group();
+  pivot.rotation.x = i * (Math.PI*2/12);
+  pivot.add(blade);
+  fanGroup.add(pivot);
+}
+const fanHub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.35, 32), matGlow);
+fanHub.rotation.z = Math.PI/2;
+fanGroup.add(fanHub);
+
+// Compressor stages
+for(let i=0; i<4; i++){
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.06, 8, 32), matDark);
+  ring.rotation.y = Math.PI/2;
+  ring.position.x = -1.4 + i*0.6;
+  group.add(ring);
+}
+
+// Turbine blades (rear)
+const turbineGroup = new THREE.Group();
+turbineGroup.position.x = 1.8;
+group.add(turbineGroup);
+for(let i=0; i<8; i++){
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.75, 0.18), matGlow);
+  blade.position.y = 0.4;
+  const pivot = new THREE.Group();
+  pivot.rotation.x = i * (Math.PI*2/8);
+  pivot.add(blade);
+  turbineGroup.add(pivot);
+}
+
+// Engine pylons
+for(let side of [-1, 1]){
+  const pylon = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.12, 0.35), matDark);
+  pylon.position.set(0, side*1.1, 0);
+  pylon.rotation.z = side*0.08;
+  group.add(pylon);
+}
+
+// Combustion chamber glow rings
+for(let i=0; i<3; i++){
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.04, 8, 32), matExhaust);
+  ring.rotation.y = Math.PI/2;
+  ring.position.x = 0.3 + i*0.35;
+  group.add(ring);
+}
+
+// Mouse interaction
+let targetRotX = 0, targetRotY = 0;
+let currentRotX = 0, currentRotY = 0;
+document.addEventListener('mousemove', e=>{
+  targetRotY = (e.clientX/window.innerWidth - 0.5) * 1.4;
+  targetRotX = (e.clientY/window.innerHeight - 0.5) * 0.7;
+});
+
+function resize(){
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if(!w||!h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+
+let fanAngle = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  resize();
+
+  currentRotX += (targetRotX - currentRotX)*0.05;
+  currentRotY += (targetRotY - currentRotY)*0.05;
+
+  group.rotation.x = currentRotX;
+  group.rotation.y = currentRotY + Math.sin(Date.now()*0.0004)*0.08;
+
+  fanAngle += 0.04;
+  fanGroup.rotation.x = fanAngle;
+  turbineGroup.rotation.x = fanAngle * 0.6;
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

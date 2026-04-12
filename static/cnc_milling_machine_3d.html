@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+camera.position.set(3, 4, 7);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.0);
+key.position.set(5, 8, 5); scene.add(key);
+const rim = new THREE.PointLight(0xa18cd1, 1.5, 18);
+rim.position.set(-4, 3, 3); scene.add(rim);
+const accent = new THREE.PointLight(0x00d4ff, 1.0, 12);
+accent.position.set(2, -1, 4); scene.add(accent);
+
+const matGray   = new THREE.MeshStandardMaterial({color:0x667788, roughness:0.35, metalness:0.8});
+const matDark   = new THREE.MeshStandardMaterial({color:0x223344, roughness:0.5,  metalness:0.7});
+const matGreen  = new THREE.MeshStandardMaterial({color:0x00c853, roughness:0.3,  metalness:0.4, emissive:0x003311, emissiveIntensity:0.4});
+const matTool   = new THREE.MeshStandardMaterial({color:0xffd740, roughness:0.15, metalness:0.9});
+const matPanel  = new THREE.MeshStandardMaterial({color:0x112233, roughness:0.6,  metalness:0.3});
+
+const group = new THREE.Group();
+scene.add(group);
+
+// Base/Table
+const base = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.4, 2.5), matDark);
+base.position.y = -1.8;
+group.add(base);
+
+// Machine column (vertical)
+const column = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.8, 0.7), matGray);
+column.position.set(-1.2, 0.1, 0);
+group.add(column);
+
+// Machine head (horizontal arm)
+const arm = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.6), matGray);
+arm.position.set(0.0, 1.5, 0);
+group.add(arm);
+
+// Spindle housing
+const spindleHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.8, 20), matDark);
+spindleHousing.position.set(0.8, 1.0, 0);
+group.add(spindleHousing);
+
+// Spindle (rotating tool holder)
+const spindle = new THREE.Group();
+spindle.position.set(0.8, 0.5, 0);
+group.add(spindle);
+
+const spindleBody = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.08, 0.9, 16), matGray);
+spindle.add(spindleBody);
+
+// Cutting tool (endmill)
+const tool = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.55, 12), matTool);
+tool.position.y = -0.7;
+spindle.add(tool);
+
+// Flutes on tool
+for(let i=0; i<4; i++){
+  const flute = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.4, 0.06), matDark);
+  flute.position.set(0.035*Math.cos(i*Math.PI/2), -0.55, 0.035*Math.sin(i*Math.PI/2));
+  flute.rotation.y = i*Math.PI/2;
+  tool.add(flute);
+}
+
+// Work table
+const table = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.2, 2.0), matGray);
+table.position.y = -1.5;
+group.add(table);
+
+// T-slots on table
+for(let i=0; i<5; i++){
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 0.05), matDark);
+  slot.position.set(0, -1.38, -0.7+i*0.35);
+  group.add(slot);
+}
+
+// Workpiece
+const workpiece = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.25, 0.7), matPanel);
+workpiece.position.set(0.8, -1.3, 0);
+group.add(workpiece);
+
+// Control panel
+const panel = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.4, 0.9), matPanel);
+panel.position.set(1.7, 0.2, 0);
+group.add(panel);
+
+// Panel screen glow
+const screen = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.55), matGreen);
+screen.position.set(1.78, 0.3, 0);
+group.add(screen);
+
+// Status light
+const light = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), matGreen);
+light.position.set(1.78, 0.78, 0.35);
+group.add(light);
+
+// Coolant pipes
+const pipe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 8), matDark);
+pipe1.position.set(0.5, 0.8, 0.3);
+pipe1.rotation.z = 0.4;
+group.add(pipe1);
+
+// Mouse interaction
+let targetRotY = 0.3, currentRotY = 0.3;
+document.addEventListener('mousemove', e=>{
+  targetRotY = (e.clientX/window.innerWidth - 0.5) * 1.6 + 0.3;
+});
+
+let spindleAngle = 0;
+
+function resize(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  if(!w||!h)return;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  resize();
+  currentRotY += (targetRotY - currentRotY)*0.05;
+  group.rotation.y = currentRotY;
+  group.rotation.x = 0.15;
+
+  spindleAngle += 0.08;
+  spindle.rotation.y = spindleAngle;
+
+  // Bobbing motion
+  spindle.position.y = 0.5 + Math.sin(Date.now()*0.001)*0.15;
+  spindleHousing.position.y = 1.0 + Math.sin(Date.now()*0.001)*0.15;
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

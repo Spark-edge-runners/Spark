@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:transparent;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+camera.position.set(2, 3.5, 7.5);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.0);
+key.position.set(5, 9, 5); scene.add(key);
+const rim = new THREE.PointLight(0x00d4ff, 1.6, 18);
+rim.position.set(-4, 3, 4); scene.add(rim);
+const accent = new THREE.PointLight(0xa18cd1, 1.0, 12);
+accent.position.set(3, -2, 3); scene.add(accent);
+
+const matGray  = new THREE.MeshStandardMaterial({color:0x667788, roughness:0.35, metalness:0.8});
+const matDark  = new THREE.MeshStandardMaterial({color:0x1a2535, roughness:0.5,  metalness:0.75});
+const matDrill = new THREE.MeshStandardMaterial({color:0xffd740, roughness:0.12, metalness:0.95});
+const matGreen = new THREE.MeshStandardMaterial({color:0x00c853, roughness:0.3,  metalness:0.4, emissive:0x003311, emissiveIntensity:0.5});
+const matRed   = new THREE.MeshStandardMaterial({color:0xff1744, roughness:0.3,  metalness:0.4, emissive:0x220000, emissiveIntensity:0.4});
+
+const group = new THREE.Group();
+scene.add(group);
+
+// Base plate
+const base = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.3, 2.4), matDark);
+base.position.y = -2.5;
+group.add(base);
+
+// Column (vertical post)
+const column = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 5.2, 20), matGray);
+column.position.set(-0.8, -0.2, 0);
+group.add(column);
+
+// Head (drill head housing)
+const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 1.1), matGray);
+head.position.set(0.2, 1.4, 0);
+group.add(head);
+
+// Motor housing (top of head)
+const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 20), matDark);
+motor.position.set(0.2, 2.05, 0);
+group.add(motor);
+
+// Quill (drill feed mechanism)
+const quillGroup = new THREE.Group();
+quillGroup.position.set(0.2, 0.8, 0);
+group.add(quillGroup);
+
+const quill = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.1, 16), matDark);
+quillGroup.add(quill);
+
+// Drill chuck
+const chuck = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.10, 0.35, 16), matGray);
+chuck.position.y = -0.72;
+quillGroup.add(chuck);
+
+// Drill bit
+const drillGroup = new THREE.Group();
+drillGroup.position.y = -0.9;
+quillGroup.add(drillGroup);
+
+const drillBody = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 12), matDrill);
+drillBody.position.y = -0.6;
+drillGroup.add(drillBody);
+
+// Drill tip
+const tip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 12), matDrill);
+tip.position.y = -1.29;
+drillGroup.add(tip);
+
+// Flutes (helix approximation)
+for(let i=0; i<2; i++){
+  const flute = new THREE.Mesh(new THREE.BoxGeometry(0.015, 1.0, 0.07), matDark);
+  flute.position.set(0.03*Math.cos(i*Math.PI), -0.6, 0.03*Math.sin(i*Math.PI));
+  flute.rotation.y = i*Math.PI;
+  drillGroup.add(flute);
+}
+
+// Work table (adjustable)
+const table = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.18, 2.0), matGray);
+table.position.y = -1.5;
+group.add(table);
+
+// T-slots
+for(let i=0; i<4; i++){
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 0.06), matDark);
+  slot.position.set(0, -1.39, -0.6+i*0.4);
+  group.add(slot);
+}
+
+// Workpiece with hole being drilled
+const wp = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.22, 0.6), matDark);
+wp.position.set(0.2, -1.35, 0);
+group.add(wp);
+
+// Depth stop ring
+const depthStop = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 8, 24), matRed);
+depthStop.position.set(0.2, 0.6, 0);
+group.add(depthStop);
+
+// Feed handle
+const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8), matDark);
+handle.rotation.z = Math.PI/2;
+handle.position.set(1.05, 0.8, 0);
+group.add(handle);
+
+const handleBall = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), matGray);
+handleBall.position.set(1.42, 0.8, 0);
+group.add(handleBall);
+
+// Control panel
+const panel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.55), matDark);
+panel.position.set(1.05, 1.4, 0);
+group.add(panel);
+
+const screen = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.32), matGreen);
+screen.position.set(1.1, 1.45, 0);
+group.add(screen);
+
+// Coolant nozzle
+const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.018, 0.5, 8), matDark);
+nozzle.rotation.z = 0.6;
+nozzle.position.set(0.55, 0.35, 0.3);
+group.add(nozzle);
+
+// Mouse
+let targetRotY = 0.25, currentRotY = 0.25;
+document.addEventListener('mousemove', e=>{
+  targetRotY = (e.clientX/window.innerWidth - 0.5)*1.5 + 0.25;
+});
+
+let drillAngle = 0;
+let drillY = 0;
+let drillDir = 1;
+
+function resize(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  if(!w||!h)return;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  resize();
+  currentRotY += (targetRotY-currentRotY)*0.05;
+  group.rotation.y = currentRotY;
+  group.rotation.x = 0.12;
+
+  drillAngle += 0.1;
+  drillGroup.rotation.y = drillAngle;
+
+  // Feed motion
+  drillY += drillDir * 0.005;
+  if(drillY > 0.35) drillDir = -1;
+  if(drillY < 0) drillDir = 1;
+  quillGroup.position.y = 0.8 - drillY;
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
