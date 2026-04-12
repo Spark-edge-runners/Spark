@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PredictIQ — Industrial AI Maintenance</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f5f0;
+  --surface:#ffffff;
+  --border:rgba(0,0,0,0.08);
+  --border2:rgba(0,0,0,0.14);
+  --text:#0a0a0a;
+  --muted:#6b7280;
+  --muted2:#9ca3af;
+  --accent:#1a1a1a;
+}
+html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+
+/* NAV */
+nav{
+  position:sticky;top:0;z-index:100;
+  height:56px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;background:rgba(245,245,240,0.92);
+  border-bottom:0.5px solid var(--border);backdrop-filter:blur(16px)
+}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-logo{width:28px;height:28px;border-radius:7px;background:var(--text);display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.nav-name{font-size:14px;font-weight:600;letter-spacing:-0.01em}
+.nav-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,0.06);border:0.5px solid var(--border2);color:var(--muted);font-weight:500}
+.nav-r{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#10b981;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* HERO */
+.hero{padding:72px 32px 56px;max-width:1200px;margin:0 auto}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;padding:5px 12px;border-radius:20px;background:rgba(0,0,0,0.04);border:0.5px solid var(--border2)}
+.hero h1{font-size:clamp(2.4rem,5vw,4rem);font-weight:600;letter-spacing:-0.04em;line-height:1.05;margin-bottom:16px;color:var(--text)}
+.hero-sub{font-size:1rem;color:var(--muted);max-width:480px;line-height:1.7;margin-bottom:36px}
+.hero-stats{display:inline-flex;background:var(--surface);border:0.5px solid var(--border2);border-radius:12px;overflow:hidden}
+.hs{padding:12px 22px;text-align:center;border-right:0.5px solid var(--border)}
+.hs:last-child{border-right:none}
+.hs-v{font-size:20px;font-weight:600;letter-spacing:-0.02em}
+.hs-l{font-size:10px;color:var(--muted2);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em}
+
+/* INDUSTRY GRID */
+.section{padding:0 32px 80px;max-width:1200px;margin:0 auto}
+.section-label{font-size:11px;font-weight:500;color:var(--muted2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.section-label::after{content:'';flex:1;height:0.5px;background:var(--border2)}
+
+.ind-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+.ind-card{
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:16px;overflow:hidden;cursor:pointer;
+  text-decoration:none;color:var(--text);display:block;
+  transition:all 0.25s ease
+}
+.ind-card:hover{border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,0.08);transform:translateY(-2px)}
+
+.ind-img{height:200px;overflow:hidden;position:relative;background:#1a1a1a}
+.ind-img img{width:100%;height:100%;object-fit:cover;transition:transform 0.4s ease;filter:brightness(0.85)}
+.ind-card:hover .ind-img img{transform:scale(1.04);filter:brightness(0.95)}
+.ind-img-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.55) 0%,transparent 55%)}
+.ind-img-badge{position:absolute;top:12px;left:12px;font-size:9px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,0.15);border:0.5px solid rgba(255,255,255,0.3);color:#fff;letter-spacing:0.06em;text-transform:uppercase;backdrop-filter:blur(8px)}
+.ind-img-status{position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:4px;font-size:9px;font-weight:500;padding:3px 8px;border-radius:20px;background:rgba(16,185,129,0.15);border:0.5px solid rgba(16,185,129,0.3);color:#10b981;backdrop-filter:blur(8px)}
+.ind-img-status-dot{width:5px;height:5px;border-radius:50%;background:#10b981}
+
+.ind-body{padding:16px 18px 18px}
+.ind-num{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.ind-name{font-size:17px;font-weight:600;letter-spacing:-0.02em;margin-bottom:5px}
+.ind-desc{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+.ind-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.ind-tag{font-size:10px;padding:2px 8px;border-radius:5px;background:rgba(0,0,0,0.04);border:0.5px solid var(--border);color:var(--muted)}
+.ind-foot{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:0.5px solid var(--border)}
+.ind-cta{font-size:12px;font-weight:500;color:var(--text)}
+.ind-arrow{font-size:12px;color:var(--muted2);transition:transform 0.2s}
+.ind-card:hover .ind-arrow{transform:translateX(3px);color:var(--text)}
+
+@media(max-width:900px){.ind-grid{grid-template-columns:1fr;max-width:480px}}
+@media(max-width:600px){nav,hero,.section{padding-left:16px;padding-right:16px}.hero{padding-top:48px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-l">
+    <div class="nav-logo">PQ</div>
+    <span class="nav-name">PredictIQ</span>
+    <span class="nav-tag">AI Maintenance Platform</span>
+  </div>
+  <div class="nav-r">
+    <div class="live-dot"></div>
+    All systems online · 15 ML models active
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Industrial AI Platform</div>
+  <h1>Predict failures<br>before they happen</h1>
+  <p class="hero-sub">Real-time machine health monitoring powered by dedicated ML models. Select your industry to begin monitoring.</p>
+  <div class="hero-stats">
+    <div class="hs"><div class="hs-v">15</div><div class="hs-l">ML Models</div></div>
+    <div class="hs"><div class="hs-v">3</div><div class="hs-l">Industries</div></div>
+    <div class="hs"><div class="hs-v">9</div><div class="hs-l">Components</div></div>
+    <div class="hs"><div class="hs-v">98%</div><div class="hs-l">CNC Accuracy</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Select your industry</div>
+  <div class="ind-grid">
+
+    <a class="ind-card" href="/dashboard/cnc">
+      <div class="ind-img">
+        <img src="/static/img_cnc_mill.png" alt="CNC Machine"/>
+        <div class="ind-img-overlay"></div>
+        <div class="ind-img-badge">CNC Manufacturing</div>
+        <div class="ind-img-status"><div class="ind-img-status-dot"></div>Online</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-num">01 · CNC Manufacturing</div>
+        <div class="ind-name">CNC Machine Suite</div>
+        <div class="ind-desc">Dedicated models for lathe, milling and drilling with real-time tool wear, vibration and temperature monitoring.</div>
+        <div class="ind-tags">
+          <span class="ind-tag">3 machines</span>
+          <span class="ind-tag">AI4I 2020</span>
+          <span class="ind-tag">XGBoost</span>
+          <span class="ind-tag">Random Forest</span>
+          <span class="ind-tag">Gradient Boost</span>
+        </div>
+        <div class="ind-foot">
+          <span class="ind-cta">Open CNC monitor</span>
+          <span class="ind-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="ind-card" href="/dashboard/aerospace">
+      <div class="ind-img">
+        <img src="/static/img_jet_engine.png" alt="Jet Engine"/>
+        <div class="ind-img-overlay"></div>
+        <div class="ind-img-badge">Aerospace & Aeronautical</div>
+        <div class="ind-img-status"><div class="ind-img-status-dot"></div>Online</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-num">02 · Aerospace & Aeronautical</div>
+        <div class="ind-name">Jet Engine Monitor</div>
+        <div class="ind-desc">Compressor, turbine and combustion chamber health monitoring with RUL prediction using NASA CMAPSS data.</div>
+        <div class="ind-tags">
+          <span class="ind-tag">3 components</span>
+          <span class="ind-tag">NASA CMAPSS</span>
+          <span class="ind-tag">RUL prediction</span>
+          <span class="ind-tag">EGT · Pressure</span>
+        </div>
+        <div class="ind-foot">
+          <span class="ind-cta">Open aerospace monitor</span>
+          <span class="ind-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="ind-card" href="/dashboard/energy">
+      <div class="ind-img">
+        <img src="/static/img_wind_turbine.png" alt="Wind Turbine"/>
+        <div class="ind-img-overlay"></div>
+        <div class="ind-img-badge">Energy Sector</div>
+        <div class="ind-img-status"><div class="ind-img-status-dot"></div>Online</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-num">03 · Energy Sector</div>
+        <div class="ind-name">Wind Turbine Monitor</div>
+        <div class="ind-desc">Gearbox, generator and bearings health tracking with power analytics using NREL SCADA wind energy data.</div>
+        <div class="ind-tags">
+          <span class="ind-tag">3 components</span>
+          <span class="ind-tag">NREL SCADA</span>
+          <span class="ind-tag">Power output</span>
+          <span class="ind-tag">Vibration</span>
+        </div>
+        <div class="ind-foot">
+          <span class="ind-cta">Open energy monitor</span>
+          <span class="ind-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+</div>
+
+</body>
+</html>
