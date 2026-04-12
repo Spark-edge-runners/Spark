@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PredictIQ · Energy Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#030c10;--surface:#071218;--surface2:#0c1c24;
+  --border:rgba(0,210,200,0.1);--border2:rgba(0,210,200,0.2);
+  --text:#d8f5f3;--muted:#5a8080;--muted2:#2a4848;
+  --accent:#00d2c8;--green:#00e676;--amber:#ffab40;--red:#ff5252;--orange:#ff7043;
+  --mono:'DM Mono',monospace;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.nav{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--surface);border-bottom:0.5px solid var(--border2);flex-shrink:0}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-logo{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle,#00d2c8,#006080);display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;box-shadow:0 0 12px rgba(0,210,200,0.3)}
+.nav-name{font-size:14px;font-weight:600;color:var(--text)}
+.nav-sep{color:var(--muted2)}
+.nav-comp{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.nav-r{display:flex;align-items:center;gap:10px}
+.nav-status{font-family:var(--mono);font-size:11px;font-weight:600;padding:4px 12px;border-radius:4px;border:0.5px solid currentColor}
+.nav-status.good{color:var(--green);background:rgba(0,230,118,0.06)}
+.nav-status.warning{color:var(--amber);background:rgba(255,171,64,0.06)}
+.nav-status.bad{color:var(--orange);background:rgba(255,112,67,0.06)}
+.nav-status.critical{color:var(--red);background:rgba(255,82,82,0.06);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+.nav-btn{font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:4px;cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--muted);transition:all 0.2s;text-transform:uppercase;letter-spacing:0.05em}
+.nav-btn:hover{background:var(--surface2);color:var(--text)}
+
+.layout{display:grid;grid-template-columns:220px 1fr 310px;height:calc(100vh - 52px);overflow:hidden}
+
+.sidebar{border-right:0.5px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:12px 14px;border-bottom:0.5px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.1em}
+.sb-comps{flex:1;overflow-y:auto;padding:6px}
+.sb-item{border-radius:6px;overflow:hidden;margin-bottom:6px;cursor:pointer;border:0.5px solid transparent;transition:all 0.2s}
+.sb-item.active{border-color:rgba(0,210,200,0.3);background:rgba(0,210,200,0.05)}
+.sb-item:hover:not(.active){background:var(--surface2)}
+.sb-img{height:72px;overflow:hidden;position:relative}
+.sb-img img{width:100%;height:100%;object-fit:cover;filter:brightness(0.65);transition:filter 0.2s}
+.sb-item.active .sb-img img,.sb-item:hover .sb-img img{filter:brightness(0.8)}
+.sb-img-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent)}
+.sb-img-name{position:absolute;bottom:5px;left:8px;font-family:var(--mono);font-size:10px;color:#fff;text-transform:uppercase;letter-spacing:0.06em}
+.sb-info{padding:7px 10px;display:flex;align-items:center;justify-content:space-between}
+.sb-algo{font-family:var(--mono);font-size:9px;color:var(--muted2)}
+.sb-score{font-family:var(--mono);font-size:13px;font-weight:600}
+.wind-widget{padding:10px 12px;border-top:0.5px solid var(--border)}
+.wind-label{font-family:var(--mono);font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px}
+.wind-speed{font-family:var(--mono);font-size:30px;font-weight:600;color:var(--accent);line-height:1}
+.wind-unit{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+.wind-bar{height:3px;background:rgba(0,210,200,0.08);border-radius:2px;margin-top:8px}
+.wind-fill{height:3px;border-radius:2px;background:var(--accent);transition:width 0.5s}
+.sb-kpis{padding:10px 12px;border-top:0.5px solid var(--border)}
+.sb-kpi{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--surface2);border-radius:4px;margin-bottom:4px}
+.sb-kpi-l{font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.06em}
+.sb-kpi-v{font-family:var(--mono);font-size:13px;font-weight:600}
+
+.center{display:flex;flex-direction:column;overflow:hidden}
+.power-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.5px;background:var(--border);border-bottom:0.5px solid var(--border2);flex-shrink:0}
+.pr{background:var(--surface);padding:13px 12px;position:relative;border-bottom:2px solid transparent;transition:border-color 0.3s}
+.pr.good{border-bottom-color:var(--green)}.pr.warning{border-bottom-color:var(--amber)}.pr.bad,.pr.critical{border-bottom-color:var(--red)}
+.pr-label{font-family:var(--mono);font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px}
+.pr-val{font-family:var(--mono);font-size:20px;font-weight:600;margin-bottom:2px}
+.pr-unit{font-family:var(--mono);font-size:9px;color:var(--muted2)}
+.pr-badge{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 6px;border-radius:2px}
+.pr-badge.good{background:rgba(0,230,118,0.1);color:var(--green)}.pr-badge.warning{background:rgba(255,171,64,0.1);color:var(--amber)}.pr-badge.bad,.pr-badge.critical{background:rgba(255,82,82,0.1);color:var(--red)}
+
+.tabs{display:flex;background:var(--surface);border-bottom:0.5px solid var(--border2);flex-shrink:0}
+.tab{flex:1;padding:10px;text-align:center;font-family:var(--mono);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted2);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all 0.15s}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tc{display:none;flex:1;overflow-y:auto;padding:12px}
+.tc.on{display:block}
+.tc::-webkit-scrollbar{width:3px}
+.tc::-webkit-scrollbar-thumb{background:var(--border2)}
+.cc{background:var(--surface);border:0.5px solid var(--border);border-radius:5px;padding:13px;margin-bottom:10px}
+.cc-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.08em}
+.cc-v{font-size:12px;font-weight:600;color:var(--accent)}
+.arow{display:flex;align-items:flex-start;gap:8px;padding:7px 9px;background:var(--surface2);border-radius:3px;margin-bottom:4px;border-left:2px solid}
+.arow.good{border-color:var(--green)}.arow.warning{border-color:var(--amber)}.arow.bad,.arow.critical{border-color:var(--red)}
+.arow-t{font-family:var(--mono);font-size:9px;color:var(--muted2);min-width:52px;flex-shrink:0}
+.arow-m{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.5}
+
+/* form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:var(--mono);font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.05em;display:flex;justify-content:space-between;align-items:center}
+.field-unit{font-size:9px;color:var(--accent);background:rgba(0,210,200,0.1);padding:1px 6px;border-radius:10px;text-transform:none;letter-spacing:0}
+.field input{background:var(--bg);border:0.5px solid var(--border2);color:var(--text);border-radius:4px;padding:8px 10px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.2s;width:100%}
+.field input:focus{border-color:rgba(0,210,200,0.5)}
+.field-help{font-size:9px;color:var(--muted2);line-height:1.4}
+.field-wide{grid-column:1/-1}
+.btn-primary{width:100%;background:var(--accent);border:none;color:#001a1a;border-radius:4px;padding:9px;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.06em;transition:opacity 0.2s;margin-bottom:10px}
+.btn-primary:hover{opacity:0.85}
+.btn-secondary{flex:1;background:rgba(255,82,82,0.08);border:0.5px solid rgba(255,82,82,0.25);color:var(--red);border-radius:4px;padding:7px;cursor:pointer;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.05em}
+.btn-outline{flex:1;background:transparent;border:0.5px solid var(--border2);color:var(--muted);border-radius:4px;padding:7px;cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:0.05em}
+.btn-outline:hover{background:var(--surface2);color:var(--text)}
+.result-box{background:var(--bg);border:0.5px solid var(--border2);border-radius:4px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--muted2);min-height:60px;line-height:1.8}
+.result-box.filled{border-color:var(--accent)55}
+
+.csv-zone{border:1.5px dashed var(--border2);border-radius:5px;padding:18px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:10px;cursor:pointer;transition:all 0.2s}
+.csv-zone:hover{border-color:rgba(0,210,200,0.4);background:rgba(0,210,200,0.03)}
+.csv-zone input[type=file]{display:none}
+.csv-col-box{background:var(--bg);border:0.5px solid var(--border2);border-radius:4px;padding:9px;margin-bottom:8px;font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.8;word-break:break-all}
+.csv-row{display:grid;grid-template-columns:36px 1fr 80px 70px 60px;gap:5px;align-items:center;padding:6px 8px;background:var(--surface2);border-radius:3px;margin-bottom:3px;font-family:var(--mono);font-size:10px}
+.csv-row.header{background:transparent;color:var(--muted2);font-size:9px;text-transform:uppercase;letter-spacing:0.05em;padding-bottom:4px;border-bottom:0.5px solid var(--border)}
+.csv-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+.csv-stat{background:var(--surface2);border-radius:4px;padding:9px;text-align:center}
+.csv-stat-v{font-family:var(--mono);font-size:17px;font-weight:600}
+.csv-stat-l{font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:2px;text-transform:uppercase;letter-spacing:0.05em}
+
+.assistant{border-left:0.5px solid var(--border2);background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.ai-head{padding:12px 14px;border-bottom:0.5px solid var(--border2);flex-shrink:0;background:var(--surface2)}
+.ai-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:3px;color:var(--accent)}
+.ai-live{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite}
+.ai-sub{font-family:var(--mono);font-size:9px;color:var(--muted2)}
+.ai-msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:7px;scroll-behavior:smooth}
+.ai-msgs::-webkit-scrollbar{width:3px}
+.ai-msgs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.amsg{border-radius:5px;padding:10px 12px;font-size:12px;line-height:1.65}
+.amsg .role{font-family:var(--mono);font-size:9px;color:var(--muted2);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em}
+.amsg .ts{font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:4px}
+.amsg.auto{background:rgba(0,210,200,0.05);border-left:2px solid var(--accent)}
+.amsg.user{background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.1);color:var(--muted)}
+.amsg.ai{background:rgba(0,230,118,0.04);border-left:2px solid rgba(0,230,118,0.2)}
+.fblk{background:rgba(255,82,82,0.05);border:0.5px solid rgba(255,82,82,0.15);border-radius:5px;padding:10px;font-size:11px}
+.fblk-h{font-family:var(--mono);font-size:9px;color:#fca5a5;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em}
+.fblk-r{color:var(--muted);margin:3px 0;line-height:1.5}
+.fblk-r b{color:var(--text)}
+.fblk-f{display:flex;gap:5px;margin-top:7px;align-items:center}
+.fdiff{font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 6px;border-radius:2px;text-transform:uppercase}
+.fdiff.Easy{background:rgba(0,230,118,0.1);color:var(--green)}.fdiff.Medium{background:rgba(255,171,64,0.1);color:var(--amber)}.fdiff.Hard{background:rgba(255,112,67,0.1);color:var(--orange)}.fdiff.Expert{background:rgba(255,82,82,0.1);color:var(--red)}
+.ftime{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+.tblk{background:rgba(0,210,200,0.04);border:0.5px solid rgba(0,210,200,0.1);border-radius:5px;padding:8px 11px;font-size:11px;color:var(--muted);display:flex;gap:6px}
+.ai-inp-area{padding:10px;border-top:0.5px solid var(--border2);flex-shrink:0;background:var(--surface2)}
+.ai-row{display:flex;gap:6px;margin-bottom:5px}
+.ai-inp{flex:1;background:var(--bg);border:0.5px solid var(--border2);color:var(--text);border-radius:4px;padding:8px 10px;font-size:12px;outline:none;font-family:'Inter',sans-serif;resize:none}
+.ai-inp:focus{border-color:rgba(0,210,200,0.4)}
+.ai-send{background:var(--accent);border:none;color:#001a1a;border-radius:4px;padding:8px 14px;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;transition:opacity 0.2s}
+.ai-send:hover{opacity:0.85}
+.ai-hint{font-family:var(--mono);font-size:9px;color:var(--muted2);text-align:center;letter-spacing:0.05em}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-l">
+    <div class="nav-logo">PQ</div>
+    <span class="nav-name">PredictIQ</span>
+    <span class="nav-sep">/</span>
+    <span class="nav-comp" id="navComp">Gearbox</span>
+  </div>
+  <div class="nav-r">
+    <div class="nav-status good" id="navStatus">OPTIMAL</div>
+    <button class="nav-btn" onclick="window.location.href='/'">← Home</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sb-head">Turbine Components</div>
+    <div class="sb-comps">
+      <div class="sb-item active" onclick="switchComp('Gearbox')" id="sbi-Gearbox">
+        <div class="sb-img"><img src="/static/img_gearbox.png" alt="Gearbox"/><div class="sb-img-overlay"></div><div class="sb-img-name">Gearbox</div></div>
+        <div class="sb-info"><span class="sb-algo">Gradient Boost</span><span class="sb-score" id="sbs-Gearbox" style="color:var(--green)">—</span></div>
+      </div>
+      <div class="sb-item" onclick="switchComp('Generator')" id="sbi-Generator">
+        <div class="sb-img"><img src="/static/img_generator.png" alt="Generator"/><div class="sb-img-overlay"></div><div class="sb-img-name">Generator</div></div>
+        <div class="sb-info"><span class="sb-algo">XGBoost</span><span class="sb-score" id="sbs-Generator" style="color:var(--green)">—</span></div>
+      </div>
+      <div class="sb-item" onclick="switchComp('Bearings')" id="sbi-Bearings">
+        <div class="sb-img"><img src="/static/img_bearings.png" alt="Bearings"/><div class="sb-img-overlay"></div><div class="sb-img-name">Bearings</div></div>
+        <div class="sb-info"><span class="sb-algo">Random Forest</span><span class="sb-score" id="sbs-Bearings" style="color:var(--green)">—</span></div>
+      </div>
+    </div>
+    <div class="wind-widget">
+      <div class="wind-label">Live Wind Speed</div>
+      <div class="wind-speed" id="windSpeed">—</div>
+      <div class="wind-unit">meters / second</div>
+      <div class="wind-bar"><div class="wind-fill" id="windFill" style="width:30%"></div></div>
+    </div>
+    <div class="sb-kpis">
+      <div class="sb-kpi"><span class="sb-kpi-l">Health</span><span class="sb-kpi-v" id="kpiH" style="color:var(--green)">—</span></div>
+      <div class="sb-kpi"><span class="sb-kpi-l">Severity</span><span class="sb-kpi-v" id="kpiS" style="color:var(--accent)">—</span></div>
+      <div class="sb-kpi"><span class="sb-kpi-l">Power Out</span><span class="sb-kpi-v" id="kpiP" style="color:var(--accent);font-size:11px">— kW</span></div>
+    </div>
+  </div>
+
+  <div class="center">
+    <div class="power-row">
+      <div class="pr good" id="pr0"><div class="pr-label" id="pl0">—</div><div class="pr-val" id="pv0">—</div><div class="pr-unit" id="pu0">—</div><div class="pr-badge good" id="pb0">OK</div></div>
+      <div class="pr good" id="pr1"><div class="pr-label" id="pl1">—</div><div class="pr-val" id="pv1">—</div><div class="pr-unit" id="pu1">—</div><div class="pr-badge good" id="pb1">OK</div></div>
+      <div class="pr good" id="pr2"><div class="pr-label" id="pl2">—</div><div class="pr-val" id="pv2">—</div><div class="pr-unit" id="pu2">—</div><div class="pr-badge good" id="pb2">OK</div></div>
+      <div class="pr good" id="pr3"><div class="pr-label" id="pl3">—</div><div class="pr-val" id="pv3">—</div><div class="pr-unit" id="pu3">—</div><div class="pr-badge good" id="pb3">OK</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" onclick="showTab('trends',this)">📈 Trends</button>
+      <button class="tab"    onclick="showTab('manual',this)">✏️ Manual Entry</button>
+      <button class="tab"    onclick="showTab('csv',this)">📂 CSV Upload</button>
+      <button class="tab"    onclick="showTab('alerts',this)">🔔 Alerts</button>
+      <button class="tab"    onclick="showTab('info',this)">🔬 Info</button>
+    </div>
+
+    <!-- TRENDS -->
+    <div class="tc on" id="tc-trends">
+      <div class="cc">
+        <div class="cc-h"><span id="chartLabel">Power output trend</span><span class="cc-v" id="chartV">—</span></div>
+        <canvas id="trendChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- MANUAL ENTRY — 4 NREL SCADA features -->
+    <div class="tc" id="tc-manual">
+      <div class="cc">
+        <div class="cc-h"><span>NREL SCADA Sensor Inputs — <span id="manualCompLabel">Gearbox</span></span><span class="cc-v">Manual Predict</span></div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-bottom:10px;line-height:1.6">Enter the 4 SCADA readings from the wind turbine NREL dataset. These are used by the ML model to classify turbine health.</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Wind Speed <span class="field-unit">m/s</span></label>
+            <input id="e_ws" type="number" step="0.1" value="8.8" min="0" max="30"/>
+            <span class="field-help">Current wind speed at hub height (0–30 m/s)</span>
+          </div>
+          <div class="field">
+            <label>Theoretical Power <span class="field-unit">kW</span></label>
+            <input id="e_tp" type="number" step="1" value="920" min="0" max="3500"/>
+            <span class="field-help">Expected power at current wind speed from power curve</span>
+          </div>
+          <div class="field">
+            <label>Wind Direction <span class="field-unit">degrees °</span></label>
+            <input id="e_wd" type="number" step="1" value="134" min="0" max="360"/>
+            <span class="field-help">Wind direction from north (0–360°)</span>
+          </div>
+          <div class="field">
+            <label>Actual Power Output <span class="field-unit">kW</span></label>
+            <input id="e_pw" type="number" step="1" value="850" min="0" max="3500"/>
+            <span class="field-help">Measured output power (compare with theoretical)</span>
+          </div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-bottom:10px;background:rgba(0,210,200,0.04);border:0.5px solid var(--border2);padding:8px;border-radius:4px">
+          💡 <b>Tip:</b> If actual power is much lower than theoretical at the same wind speed, this indicates a performance issue. Use the failure case below to see this in action.
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn-outline" onclick="loadEnergyGood()">Load Normal Case</button>
+          <button class="btn-secondary" onclick="loadEnergyBad()">Load Failure Case</button>
+        </div>
+        <button class="btn-primary" onclick="runEnergyManual()">🔍 Analyse & Predict</button>
+        <div id="energyManualResult" class="result-box">Fill in SCADA values above and click Analyse &amp; Predict.</div>
+      </div>
+    </div>
+
+    <!-- CSV UPLOAD -->
+    <div class="tc" id="tc-csv">
+      <div class="cc">
+        <div class="cc-h"><span>Batch CSV Analysis — <span id="csvCompLabel">Gearbox</span></span></div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">Required CSV columns (NREL SCADA):</div>
+        <div class="csv-col-box">wind_speed, theoretical_power, wind_direction, power</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn-outline" onclick="downloadEnergyTemplate()">⬇ Download Template CSV</button>
+        </div>
+        <label class="csv-zone" for="energyCsvFile">
+          <input type="file" id="energyCsvFile" accept=".csv" onchange="handleEnergyCSV(this)"/>
+          <div style="font-size:28px;margin-bottom:8px">📂</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text);margin-bottom:4px">Click to upload CSV file</div>
+          <div style="font-size:10px;color:var(--muted2)">.csv files only</div>
+        </label>
+        <button class="btn-primary" id="energyCsvRunBtn" onclick="runEnergyCSV()" style="display:none">🔍 Run Batch Analysis</button>
+        <div id="energyCsvStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:8px"></div>
+        <div id="energyCsvSummary"></div>
+        <div id="energyCsvResults"></div>
+        <button id="energyCsvDownload" class="btn-outline" onclick="downloadEnergyResults()" style="display:none;margin-top:8px;width:100%">⬇ Download Results CSV</button>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="tc" id="tc-alerts">
+      <div id="alertList"><div style="font-family:var(--mono);font-size:10px;color:var(--muted2);text-align:center;padding:24px">No alerts · turbine optimal</div></div>
+    </div>
+
+    <!-- INFO -->
+    <div class="tc" id="tc-info">
+      <div class="cc">
+        <div class="cc-h"><span>Model information</span></div>
+        <table style="width:100%;font-family:var(--mono);font-size:11px;border-collapse:collapse">
+          <tr><td style="padding:6px 0;color:var(--muted2);border-bottom:0.5px solid var(--border)">Component</td><td style="padding:6px 0;text-align:right;border-bottom:0.5px solid var(--border)" id="infoC">—</td></tr>
+          <tr><td style="padding:6px 0;color:var(--muted2);border-bottom:0.5px solid var(--border)">Algorithm</td><td style="padding:6px 0;text-align:right;border-bottom:0.5px solid var(--border);color:var(--accent)" id="infoA">—</td></tr>
+          <tr><td style="padding:6px 0;color:var(--muted2)">Dataset</td><td style="padding:6px 0;text-align:right;color:var(--muted)">NREL SCADA Wind</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="assistant">
+    <div class="ai-head">
+      <div class="ai-title"><div class="ai-live"></div>Eco Assistant</div>
+      <div class="ai-sub" id="aiSub">Wind turbine monitor · standby</div>
+    </div>
+    <div class="ai-msgs" id="aiMsgs"></div>
+    <div class="ai-inp-area">
+      <div class="ai-row">
+        <textarea class="ai-inp" id="aiInp" placeholder="Ask about turbine health..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+        <button class="ai-send" onclick="sendChat()">SEND</button>
+      </div>
+      <div class="ai-hint">Groq LLaMA3 · Wind energy analysis</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SC={good:'#00e676',warning:'#ffab40',bad:'#ff7043',critical:'#ff5252'};
+const ORDER=['good','warning','bad','critical'];
+const COMPS={
+  'Gearbox':{algo:'Gradient Boosting',endpoint:'gearbox',sensors:[{label:'Wind Speed',unit:'m/s',thresh:[15,20,25],inv:false,key:'wind_speed'},{label:'Vibration',unit:'mm/s',thresh:[3,6,10],inv:false,key:'vibration'},{label:'Gearbox Temp',unit:'°C',thresh:[60,75,85],inv:false,key:'temperature'},{label:'Power Output',unit:'kW',thresh:[500,200,50],inv:true,key:'power'}]},
+  'Generator':{algo:'XGBoost',endpoint:'generator',sensors:[{label:'Wind Speed',unit:'m/s',thresh:[15,20,25],inv:false,key:'wind_speed'},{label:'Power Output',unit:'kW',thresh:[500,200,50],inv:true,key:'power'},{label:'Gen Temp',unit:'°C',thresh:[60,75,85],inv:false,key:'temperature'},{label:'Current',unit:'A',thresh:[400,500,600],inv:false,key:'current'}]},
+  'Bearings':{algo:'Random Forest',endpoint:'bearings',sensors:[{label:'Vibration',unit:'mm/s',thresh:[3,6,10],inv:false,key:'vibration'},{label:'Bearing Temp',unit:'°C',thresh:[60,75,85],inv:false,key:'temperature'},{label:'Rotor Speed',unit:'RPM',thresh:[18,22,26],inv:false,key:'rotor_speed'},{label:'Power Output',unit:'kW',thresh:[500,200,50],inv:true,key:'power'}]},
+};
+const TIPS={'Gearbox':['Check oil level and quality daily','Monitor gear meshing vibration','Inspect oil filter every 500 hours','Check for metallic particles in oil'],'Generator':['Check winding insulation monthly','Monitor output voltage and frequency','Inspect slip rings and brushes weekly'],'Bearings':['Monitor bearing temperature every hour','Check lubrication oil viscosity weekly','Inspect seal condition monthly']};
+const FAULTS={'Gearbox':[{fault:'Gear tooth wear',causes:'Oil degradation;Overload',repair:'Change oil;Reduce load',difficulty:'Medium',time_min:120}],'Generator':[{fault:'Winding overheating',causes:'Overload;Cooling failure',repair:'Reduce load;Fix cooling',difficulty:'Hard',time_min:180}],'Bearings':[{fault:'Bearing spalling',causes:'Fatigue;Contamination',repair:'Replace bearing;Clean system',difficulty:'Hard',time_min:240}]};
+
+let state={comp:'Gearbox',tick:0,history:[],alerts:[],chart:null,lastMsgTime:0,lastSts:'good',failCycle:0};
+let energyCsvData=[];let energyCsvResults=[];
+
+function gs(val,s){const[w,b,c]=s.thresh;if(s.inv){if(val<=c)return'critical';if(val<=b)return'bad';if(val<=w)return'warning';return'good';}if(val>=c)return'critical';if(val>=b)return'bad';if(val>=w)return'warning';return'good';}
+function go(r){let worst='good';COMPS[state.comp].sensors.forEach(s=>{const st=gs(r[s.key]||0,s);if(ORDER.indexOf(st)>ORDER.indexOf(worst))worst=st;});return worst;}
+function health(r){const m={good:100,warning:65,bad:35,critical:10};const sensors=COMPS[state.comp].sensors;return Math.round(sensors.map(s=>m[gs(r[s.key]||0,s)]).reduce((a,b)=>a+b,0)/sensors.length);}
+function sev(r){let t=0;COMPS[state.comp].sensors.forEach(s=>{const st=gs(r[s.key]||0,s);const S={good:0.1,warning:0.4,bad:0.7,critical:1.0}[st];t+=0.9*S*0.25*{good:0.1,warning:0.5,bad:0.8,critical:1.0}[st];});return Math.min(t*10,10).toFixed(1);}
+function statusLabel(s){return{good:'OPTIMAL',warning:'CAUTION',bad:'ADVISORY',critical:'FAULT'}[s];}
+
+function simR(tick,fail){
+  const d=fail?55:Math.min(tick*0.035,16);const ws=+(8+Math.random()*6+d*0.2).toFixed(1);
+  return{wind_speed:ws,power:Math.max(+(800-d*15+(Math.random()-0.5)*80).toFixed(0),0),temperature:+(38+d*0.4+Math.random()*3).toFixed(1),rotor_speed:+(14+Math.random()*4+d*0.1).toFixed(1),vibration:+(1.0+d*0.08+Math.random()*0.4).toFixed(2),current:+(220+Math.random()*40+d*2).toFixed(1)};
+}
+
+function initChart(){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  state.chart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#00d2c8',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(0,210,200,0.05)',tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{grid:{color:'rgba(0,210,200,0.05)'},ticks:{color:'#2a4848',font:{family:'DM Mono',size:9}}}}}});
+}
+
+function updateSensors(r){
+  document.getElementById('windSpeed').textContent=r.wind_speed;
+  document.getElementById('windFill').style.width=`${Math.min((r.wind_speed/30)*100,100)}%`;
+  document.getElementById('kpiP').textContent=`${r.power} kW`;
+  const sensors=COMPS[state.comp].sensors;
+  sensors.forEach((s,i)=>{
+    const val=r[s.key]||0;const st=gs(val,s);
+    document.getElementById(`pl${i}`).textContent=s.label;
+    document.getElementById(`pv${i}`).textContent=val;document.getElementById(`pv${i}`).style.color=SC[st];
+    document.getElementById(`pu${i}`).textContent=s.unit;
+    document.getElementById(`pb${i}`).textContent=st.toUpperCase().slice(0,4);
+    document.getElementById(`pb${i}`).className=`pr-badge ${st}`;
+    document.getElementById(`pr${i}`).className=`pr ${st}`;
+  });
+}
+
+function updateNav(overall,score,s){
+  const el=document.getElementById('navStatus');el.className=`nav-status ${overall}`;el.textContent=statusLabel(overall);
+  document.getElementById('kpiH').textContent=score;document.getElementById('kpiH').style.color=SC[overall];
+  document.getElementById('kpiS').textContent=s;
+  document.getElementById('sbs-'+state.comp).textContent=score;document.getElementById('sbs-'+state.comp).style.color=SC[overall];
+}
+
+function updateChart(r){
+  if(!state.chart)initChart();
+  const primary=COMPS[state.comp].sensors.find(s=>s.key==='power')||COMPS[state.comp].sensors[0];
+  const hist=state.history.slice(-40);const vals=hist.map(h=>h[primary.key]||0);
+  state.chart.data.labels=vals.map((_,i)=>i);state.chart.data.datasets[0].data=vals;
+  state.chart.data.datasets[0].borderColor=SC[gs(r[primary.key]||0,primary)];state.chart.update('none');
+  document.getElementById('chartLabel').textContent=`${primary.label} trend`;
+  document.getElementById('chartV').textContent=`${r[primary.key]||'—'} ${primary.unit}`;
+}
+
+function autoMsg(r,overall){
+  if(overall==='good'){const t=TIPS[state.comp];return`${state.comp} operating optimally. Tip: ${t[state.tick%t.length]}`;}
+  const sensors=COMPS[state.comp].sensors;const worst=sensors.map(s=>({...s,val:r[s.key]||0,st:gs(r[s.key]||0,s)})).find(x=>x.st!=='good');
+  if(overall==='warning')return`⚠️ ${worst?.label} at ${worst?.val} ${worst?.unit} — entering caution zone.`;
+  if(overall==='bad'){const f=FAULTS[state.comp]?.[0];return f?`❌ ${f.fault}. Cause: ${f.causes.split(';')[0]}. Action: ${f.repair.split(';')[0]}.`:'❌ Performance degraded. Inspect component.';}
+  const f=FAULTS[state.comp]?.[0];return f?`🚨 FAULT: ${f.fault}. ${f.repair.split(';').map((r,i)=>`Step ${i+1}: ${r}`).join('. ')}.`:'🚨 Critical fault! Execute emergency shutdown.';
+}
+
+function addMsg(role,content){
+  const body=document.getElementById('aiMsgs');const ts=new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const d=document.createElement('div');d.className=`amsg ${role}`;
+  d.innerHTML=`<div class="role">${role==='auto'?'System':role==='user'?'Operator':'Eco AI'}</div>${content}<div class="ts">${ts}</div>`;
+  body.appendChild(d);body.scrollTop=body.scrollHeight;if(body.children.length>50)body.removeChild(body.firstChild);
+}
+function addFault(faults){const body=document.getElementById('aiMsgs');faults.slice(0,1).forEach(f=>{const d=document.createElement('div');d.className='fblk';d.innerHTML=`<div class="fblk-h">Fault: ${f.fault}</div><div class="fblk-r"><b>Cause:</b> ${f.causes.replace(/;/g,' · ')}</div><div class="fblk-r"><b>Action:</b> ${f.repair.replace(/;/g,' → ')}</div><div class="fblk-f"><span class="fdiff ${f.difficulty}">${f.difficulty}</span><span class="ftime">⏱ ${f.time_min} min</span></div>`;body.appendChild(d);body.scrollTop=body.scrollHeight;});}
+function addAlert(overall,msg){state.alerts.push({overall,msg,time:new Date().toLocaleTimeString('en-GB',{hour12:false})});if(state.alerts.length>25)state.alerts.shift();document.getElementById('alertList').innerHTML=state.alerts.slice(-12).reverse().map(a=>`<div class="arow ${a.overall}"><span class="arow-t">${a.time}</span><span class="arow-m">${a.msg.slice(0,80)}</span></div>`).join('');}
+
+function tick(){
+  state.tick++;state.failCycle++;
+  const autoFail=state.failCycle>=5&&state.failCycle<=7;if(state.failCycle>=10)state.failCycle=0;
+  const r=simR(state.tick,autoFail);state.history.push(r);if(state.history.length>60)state.history.shift();
+  const overall=go(r);const score=health(r);const s=sev(r);
+  updateSensors(r);updateNav(overall,score,s);updateChart(r);
+  document.getElementById('aiSub').textContent=`${state.comp} · ${statusLabel(overall)}`;
+  document.getElementById('navComp').textContent=state.comp;
+  document.getElementById('infoC').textContent=state.comp;document.getElementById('infoA').textContent=COMPS[state.comp].algo;
+  const now=Date.now();const msg=autoMsg(r,overall);
+  if(now-state.lastMsgTime>5000||overall!==state.lastSts){
+    addMsg('auto',msg);
+    if(overall==='bad'||overall==='critical')addFault(FAULTS[state.comp]||[]);
+    else if(overall==='warning'){const body=document.getElementById('aiMsgs');const d=document.createElement('div');d.className='tblk';d.innerHTML=`<span>💡</span><span>${TIPS[state.comp][state.tick%TIPS[state.comp].length]}</span>`;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+    if(overall!=='good')addAlert(overall,msg.replace(/[✅⚠️❌🚨]/g,'').trim());
+    state.lastMsgTime=now;state.lastSts=overall;
+  }
+}
+
+function switchComp(name){
+  state.comp=name;state.tick=0;state.history=[];state.failCycle=0;
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById(`sbi-${name}`)?.classList.add('active');
+  document.getElementById('manualCompLabel').textContent=name;
+  document.getElementById('csvCompLabel').textContent=name;
+  addMsg('auto',`Switched to ${name} · ${COMPS[name].algo} model active`);
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.tc').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');document.getElementById(`tc-${name}`)?.classList.add('on');
+}
+
+/* ── MANUAL ── */
+function loadEnergyGood(){
+  document.getElementById('e_ws').value=8.8;
+  document.getElementById('e_tp').value=920;
+  document.getElementById('e_wd').value=134;
+  document.getElementById('e_pw').value=850;
+}
+function loadEnergyBad(){
+  document.getElementById('e_ws').value=11.5;
+  document.getElementById('e_tp').value=1500;
+  document.getElementById('e_wd').value=200;
+  document.getElementById('e_pw').value=120;
+}
+
+async function runEnergyManual(){
+  const box=document.getElementById('energyManualResult');
+  box.textContent='Running prediction...';box.className='result-box';
+  const payload={
+    wind_speed:parseFloat(document.getElementById('e_ws').value),
+    theoretical_power:parseFloat(document.getElementById('e_tp').value),
+    wind_direction:parseFloat(document.getElementById('e_wd').value),
+    power:parseFloat(document.getElementById('e_pw').value),
+  };
+  const ep=COMPS[state.comp].endpoint;
+  try{
+    const res=await fetch(`/predict/energy/${ep}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await res.json();
+    const col=d.color||SC[d.status||'good'];
+    box.innerHTML=`<span style="color:${col};font-size:13px;font-weight:700">PREDICTION: ${d.prediction||'—'}</span>\n<span style="color:${col}">Status: ${(d.status||'good').toUpperCase()}</span>\nConfidence: <b style="color:${col}">${d.confidence||'—'}%</b>\n\nComponent: ${state.comp}\nActual vs Theoretical: ${payload.power} kW vs ${payload.theoretical_power} kW\nEfficiency: ${Math.round(payload.power/Math.max(payload.theoretical_power,1)*100)}%`;
+    box.className='result-box filled';
+    addMsg('user',`[Manual Entry] ${state.comp} → ${d.prediction} (${d.confidence}%)`);
+    const chatRes=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:`Prediction: ${d.prediction}, Confidence ${d.confidence}%. Inputs: Wind=${payload.wind_speed}m/s, ActualPower=${payload.power}kW, TheoreticalPower=${payload.theoretical_power}kW. Diagnose.`,industry:'Energy Sector',component:state.comp,status:d.status||'good',reading:payload})});
+    const chatD=await chatRes.json();addMsg('ai',chatD.response||'Check Groq API key.');
+  }catch(e){box.textContent='Backend unavailable. Ensure python api.py is running.';box.style.color='var(--red)';}
+}
+
+/* ── CSV ── */
+function downloadEnergyTemplate(){
+  const csv='wind_speed,theoretical_power,wind_direction,power\n8.8,920,134,850\n11.5,1500,200,120\n6.2,400,90,380\n';
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='predictiq_energy_template.csv';a.click();
+}
+function handleEnergyCSV(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.trim().split('\n');
+    if(lines.length<2){document.getElementById('energyCsvStatus').textContent='CSV has no data rows.';return;}
+    const headers=lines[0].split(',').map(h=>h.trim());
+    energyCsvData=lines.slice(1).map(line=>{const vals=line.split(',');const row={};headers.forEach((h,i)=>{row[h]=parseFloat(vals[i])||0;});return row;});
+    document.getElementById('energyCsvStatus').textContent=`✅ Loaded ${energyCsvData.length} rows.`;
+    document.getElementById('energyCsvRunBtn').style.display='block';
+    document.getElementById('energyCsvSummary').innerHTML='';document.getElementById('energyCsvResults').innerHTML='';
+  };
+  reader.readAsText(file);
+}
+async function runEnergyCSV(){
+  if(!energyCsvData.length)return;
+  const status=document.getElementById('energyCsvStatus');
+  status.textContent=`Running predictions on ${energyCsvData.length} rows...`;
+  energyCsvResults=[];
+  const ep=COMPS[state.comp].endpoint;
+  for(let i=0;i<energyCsvData.length;i++){
+    const row=energyCsvData[i];
+    try{
+      const res=await fetch(`/predict/energy/${ep}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(row)});
+      const d=await res.json();
+      energyCsvResults.push({row:i+1,prediction:d.prediction||'Unknown',confidence:d.confidence||0,status:d.status||'good',color:d.color||'#888'});
+    }catch{energyCsvResults.push({row:i+1,prediction:'Error',confidence:0,status:'good',color:'#888'});}
+    status.textContent=`Processed ${i+1} / ${energyCsvData.length} rows...`;
+  }
+  renderEnergyResults();
+}
+function renderEnergyResults(){
+  const counts={good:0,warning:0,bad:0,critical:0};
+  energyCsvResults.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);const n=energyCsvResults.length;
+  document.getElementById('energyCsvSummary').innerHTML=`<div class="csv-summary"><div class="csv-stat"><div class="csv-stat-v" style="color:#fff">${n}</div><div class="csv-stat-l">Total</div></div><div class="csv-stat"><div class="csv-stat-v" style="color:var(--green)">${counts.good}</div><div class="csv-stat-l">Optimal</div></div><div class="csv-stat"><div class="csv-stat-v" style="color:var(--amber)">${counts.warning+counts.bad}</div><div class="csv-stat-l">Caution</div></div><div class="csv-stat"><div class="csv-stat-v" style="color:var(--red)">${counts.critical}</div><div class="csv-stat-l">Fault</div></div></div>`;
+  const rows=energyCsvResults.map(r=>`<div class="csv-row"><span style="color:var(--muted2)">#${r.row}</span><span style="color:${r.color};font-weight:600">${r.prediction}</span><span style="color:${r.color}">${statusLabel(r.status)}</span><span style="color:var(--muted2)">${r.confidence}%</span><span style="color:${r.color}">●</span></div>`).join('');
+  document.getElementById('energyCsvResults').innerHTML=`<div class="csv-row header"><span>#</span><span>Prediction</span><span>Status</span><span>Conf.</span><span></span></div>${rows}`;
+  document.getElementById('energyCsvStatus').textContent=`✅ Analysis complete — ${n} rows`;
+  document.getElementById('energyCsvDownload').style.display='block';
+}
+function downloadEnergyResults(){
+  const header='Row,Prediction,Status,Confidence\n';
+  const rows=energyCsvResults.map(r=>`${r.row},${r.prediction},${r.status},${r.confidence}%`).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(header+rows);
+  a.download='predictiq_energy_results.csv';a.click();
+}
+
+async function sendChat(){
+  const inp=document.getElementById('aiInp');const txt=inp.value.trim();if(!txt)return;
+  inp.value='';addMsg('user',txt);
+  try{
+    const r=state.history[state.history.length-1]||{};
+    const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt,industry:'Energy Sector',component:state.comp,status:state.lastSts,reading:r})});
+    const d=await res.json();addMsg('ai',d.response||'No response');
+  }catch(e){addMsg('ai','AI unavailable. Check Groq API key.');}
+}
+
+initChart();
+addMsg('auto','Wind Energy Monitor online. NREL SCADA dataset active. Use Manual Entry tab for single predictions or CSV Upload for batch analysis.');
+setInterval(tick,2000);
+</script>
+</body>
+</html>
